@@ -4,20 +4,13 @@ import EchoPet from '../common/EchoPet';
 
 /**
  * Personal information component for the center of the resume
- * 
- * @param {Object} props - Component props
- * @param {Object} props.colors - Color scheme
- * @param {Function} props.onClick - Click handler
- * @param {number} props.dogX - Horizontal position of the dog
- * @param {string} props.echoState - Current state of the dog animation
- * @param {string} props.echoDirection - Current direction the dog is facing
  */
-const PersonalInfo = ({ 
-  colors, 
-  onClick, 
-  dogX, 
-  echoState, 
-  echoDirection 
+const PersonalInfo = ({
+  colors,
+  onClick,
+  dogX,
+  echoState,
+  echoDirection
 }) => {
   // Determine which animation row to use based on the current state
   const getBehaviorMap = () => {
@@ -57,7 +50,9 @@ const PersonalInfo = ({
           position: 'absolute',
           bottom: '1.5rem',
           left: '50%',
-          transform: `translateX(${dogX}%) scaleX(${echoDirection === 'left' ? -1 : 1})`,
+          // The key fix: flip when direction is 'right', not 'left'
+          // Since the sprite sheet has dog facing left by default
+          transform: `translateX(${dogX}%) scaleX(${echoDirection === 'right' ? -1 : 1})`,
           width: '48px',
           height: '48px',
         }}

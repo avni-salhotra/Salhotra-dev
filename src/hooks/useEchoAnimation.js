@@ -17,6 +17,8 @@ export const useEchoAnimation = () => {
     
     const interval = setInterval(() => {
       setDogX((prevX) => {
+        // This is the key fix - make movement direction match the visual direction
+        // When direction is 'right', increment X; when 'left', decrement X
         const nextX = echoDirection === 'right' ? prevX + 1 : prevX - 1;
         
         // Change direction at boundaries
