@@ -1,9 +1,8 @@
+/* src/components/common/EchoPet/echoPet.css */
 .echo-pet {
     width: 48px;
     height: 48px;
     background-repeat: no-repeat;
-    background-size: auto;
-    image-rendering: pixelated;
     position: absolute;
     bottom: 8px;
     left: 50%;
