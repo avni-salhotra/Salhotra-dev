@@ -8,12 +8,14 @@ import { useState, useRef, useEffect, useCallback } from 'react';
  * @param {Function} options.onGameOver - Callback when game ends
  * @param {number} options.canvasWidth - Width of the game canvas
  * @param {number} options.canvasHeight - Height of the game canvas
+ * @param {boolean} options.isMobile - Whether the game is running on mobile
  * @returns {Object} Game state and control methods
  */
 const useGameLogic = ({ 
   onGameOver,
   canvasWidth = 600,
-  canvasHeight = 300
+  canvasHeight = 300,
+  isMobile = false
 }) => {
   // Game state
   const [isRunning, setIsRunning] = useState(true);
@@ -27,35 +29,114 @@ const useGameLogic = ({
   const animationRef = useRef(null);
   const lastTimeRef = useRef(0);
   
-  // Player entity
+  // Calculate ground level - this is the core of positioning
+  const groundLevelPercent = 0.85; // 85% down from the top
+  
+  // Calculate the actual ground Y position
+  const calculateGroundY = (height) => {
+    return Math.floor(height * groundLevelPercent);
+  };
+  
+  // Player height adjustment for different screen sizes
+  const playerHeightAdjustment = isMobile ? 60 : 65;
+  
+  // Calculate initial ground level
+  const [groundLevel, setGroundLevel] = useState(
+    calculateGroundY(canvasHeight) - playerHeightAdjustment
+  );
+  
+  // Recalculate ground level whenever canvas dimensions change
+  useEffect(() => {
+    const newGroundLevel = calculateGroundY(canvasHeight) - playerHeightAdjustment;
+    setGroundLevel(newGroundLevel);
+    
+    // When dimensions change, we need to update player and bug positions
+    if (playerRef.current) {
+      playerRef.current.y = newGroundLevel;
+    }
+    
+    if (bugRef.current) {
+      // Position bug at ground level
+      bugRef.current.y = calculateGroundY(canvasHeight) - bugRef.current.height;
+    }
+  }, [canvasWidth, canvasHeight, playerHeightAdjustment]);
+
+  // Adjust player size based on screen
+  const playerSize = isMobile ? Math.min(60, canvasWidth / 8) : 72;
+  
+  // Bug size consistent with player
+  const bugSize = isMobile ? Math.min(25, canvasWidth / 20) : 25;
+  
+  // Initialize player reference
   const playerRef = useRef({
-    x: 50,
-    y: 205,
-    width: 72,
-    height: 72,
+    x: isMobile ? canvasWidth / 6 : 50,
+    y: groundLevel, 
+    width: playerSize,
+    height: playerSize,
     vy: 0,
-    gravity: 1.5,
-    jumpForce: -20,
+    gravity: isMobile ? 0.7 : 1.5,
+    jumpForce: isMobile ? -12 : -20,
     isJumping: false
   });
   
-  // Bug/obstacle entity
+  // Initialize bug/obstacle reference at ground level
   const bugRef = useRef({
     x: canvasWidth,
-    y: 240,
-    width: 25,
-    height: 25,
-    speed: 3.5
+    y: calculateGroundY(canvasHeight) - bugSize, // Position at ground level
+    width: bugSize,
+    height: bugSize,
+    speed: isMobile ? 3 : 3.5 // Slightly easier on mobile
   });
+  
+  // Handle resize or orientation change
+  useEffect(() => {
+    const handleResizeOrOrientation = () => {
+      const newCanvasWidth = isMobile ? window.innerWidth : canvasWidth;
+      const newCanvasHeight = isMobile ? window.innerHeight - 100 : canvasHeight;
+
+      // Update ground level based on new canvas height
+      const newGroundLevel = calculateGroundY(newCanvasHeight) - playerHeightAdjustment;
+      setGroundLevel(newGroundLevel);
+
+      const player = playerRef.current;
+      const bug = bugRef.current;
+
+      // Adjust player based on how high they are off the ground originally
+      const relativePlayerOffset = player.y - groundLevel;
+      player.y = newGroundLevel + relativePlayerOffset;
+
+      // If falling too low, snap to ground
+      if (player.y > newGroundLevel) {
+        player.y = newGroundLevel;
+        player.vy = 0;
+        player.isJumping = false;
+      }
+
+      // Reset bug to run near new ground level
+      bug.y = calculateGroundY(newCanvasHeight) - bug.height;
+    };
+
+    // Listen to resize and orientation change
+    window.addEventListener('resize', handleResizeOrOrientation);
+    window.addEventListener('orientationchange', handleResizeOrOrientation);
+
+    return () => {
+      window.removeEventListener('resize', handleResizeOrOrientation);
+      window.removeEventListener('orientationchange', handleResizeOrOrientation);
+    };
+  }, [canvasWidth, canvasHeight, isMobile, playerHeightAdjustment]);
   
   // Reset the bug position and increment score
   const resetBug = useCallback(() => {
     const bug = bugRef.current;
     bug.x = canvasWidth;
+    // Ensure bug's y position is at ground level
+    bug.y = calculateGroundY(canvasHeight) - bug.height;
+    
     if (!gameOver) {
       setScore(prevScore => prevScore + 1);
     }
-  }, [gameOver, canvasWidth]);
+  }, [gameOver, canvasWidth, canvasHeight]);
   
   // Check for collision between player and bug
   const checkCollision = useCallback(() => {
@@ -64,10 +145,10 @@ const useGameLogic = ({
     
     // Use smaller hitbox for more precise collision detection
     const playerHitbox = {
-      x: player.x + 10,
-      y: player.y + 5,
-      width: player.width - 20,
-      height: player.height - 10
+      x: player.x + player.width * 0.15,
+      y: player.y + player.height * 0.1,
+      width: player.width * 0.7,
+      height: player.height * 0.8
     };
     
     if (
@@ -76,11 +157,17 @@ const useGameLogic = ({
       playerHitbox.y < bug.y + bug.height &&
       playerHitbox.y + playerHitbox.height > bug.y
     ) {
+      if (debugMode) {
+        console.log("Collision detected!");
+        console.log("Player:", playerHitbox);
+        console.log("Bug:", bug);
+      }
+      
       setIsRunning(false);
       setGameOver(true);
       if (onGameOver) onGameOver(score);
     }
-  }, [onGameOver, score]);
+  }, [onGameOver, score, debugMode]);
   
   // Update game state based on delta time
   const updateGame = useCallback((deltaMultiplier) => {
@@ -91,9 +178,9 @@ const useGameLogic = ({
     player.vy += player.gravity * deltaMultiplier;
     player.y += player.vy * deltaMultiplier;
     
-    // Ground collision - adjusted for larger dog
-    if (player.y > 205) {
-      player.y = 205;
+    // Ground collision - keep player on ground
+    if (player.y > groundLevel) {
+      player.y = groundLevel;
       player.vy = 0;
       player.isJumping = false;
     }
@@ -108,7 +195,19 @@ const useGameLogic = ({
     
     // Collision detection
     checkCollision();
-  }, [resetBug, checkCollision, dogSpeedMultiplier]);
+    
+    // In mobile mode, auto-advance to simulate continuous running
+    if (isMobile && !gameOver) {
+      // No need to manually press right to move forward
+      player.x += 0.5 * deltaMultiplier; // Slight forward momentum
+      
+      // Keep player from going too far right
+      const maxX = canvasWidth / 3;
+      if (player.x > maxX) {
+        player.x = maxX;
+      }
+    }
+  }, [resetBug, checkCollision, dogSpeedMultiplier, gameOver, groundLevel, isMobile, canvasWidth]);
   
   // Game loop
   const gameLoop = useCallback((timestamp) => {
@@ -124,14 +223,22 @@ const useGameLogic = ({
     // Continue loop
     animationRef.current = requestAnimationFrame(gameLoop);
   }, [isRunning, updateGame]);
+
+  // Jump method (especially for mobile)
+  const handleJump = useCallback(() => {
+    const player = playerRef.current;
+    if (!player.isJumping && !gameOver) {
+      player.vy = player.jumpForce;
+      player.isJumping = true;
+    }
+  }, [gameOver]);
   
   // Handle keyboard input
   const handleKeyDown = useCallback((e) => {
     const player = playerRef.current;
     
     if ((e.key === ' ' || e.key === 'ArrowUp') && !player.isJumping && !gameOver) {
-      player.vy = player.jumpForce;
-      player.isJumping = true;
+      handleJump();
     }
     
     if (e.key === 'ArrowRight' && !gameOver) {
@@ -165,7 +272,7 @@ const useGameLogic = ({
     if (e.key === 'Enter' && gameOver) {
       restartGame();
     }
-  }, [gameOver]);
+  }, [gameOver, handleJump]);
   
   // Reset game state for restart
   const restartGame = useCallback(() => {
@@ -177,18 +284,20 @@ const useGameLogic = ({
     
     // Reset player
     const player = playerRef.current;
-    player.y = 205;
+    player.y = groundLevel;
     player.vy = 0;
     player.isJumping = false;
-    player.x = 50;
+    player.x = isMobile ? canvasWidth / 6 : 50;
     
-    // Reset bug
-    bugRef.current.x = canvasWidth;
+    // Reset bug with consistent positioning
+    const bug = bugRef.current;
+    bug.x = canvasWidth;
+    bug.y = calculateGroundY(canvasHeight) - bug.height;
     
     // Start game again
     setIsRunning(true);
     lastTimeRef.current = 0;
-  }, [canvasWidth]);
+  }, [canvasWidth, canvasHeight, groundLevel, isMobile]);
   
   // Get current game state for rendering
   const getGameState = useCallback(() => {
@@ -200,9 +309,11 @@ const useGameLogic = ({
       isRunning,
       debugMode,
       dogSpeedMultiplier,
-      consecutiveMoves
+      consecutiveMoves,
+      groundLevel,
+      groundY: calculateGroundY(canvasHeight)
     };
-  }, [score, gameOver, isRunning, debugMode, dogSpeedMultiplier, consecutiveMoves]);
+  }, [score, gameOver, isRunning, debugMode, dogSpeedMultiplier, consecutiveMoves, groundLevel, canvasHeight]);
   
   // Start/stop game loop based on isRunning state
   useEffect(() => {
@@ -232,6 +343,7 @@ const useGameLogic = ({
     // Control methods
     restartGame,
     handleKeyDown,
+    handleJump,
     setIsRunning,
     setDebugMode
   };
