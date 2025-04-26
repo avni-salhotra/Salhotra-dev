@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import MobileGameOverlay from './game/MobileGameOverlay';
 import EchoPet from './common/EchoPet';
 import EducationSection from './resume/EducationSection';
 import SkillsSection from './resume/SkillsSection';
@@ -22,7 +23,6 @@ const SECTIONS = [
     text: 'text-[#f5f5f5]',
     z: 'z-[40]',
     title: 'Education',
-    subtitle: null,
     content: <EducationSection colors={{ lightText: '#ffffff' }} />,
   },
   {
@@ -31,7 +31,6 @@ const SECTIONS = [
     text: 'text-[#f5f5f5]',
     z: 'z-[30]',
     title: 'Skills',
-    subtitle: null,
     content: <SkillsSection colors={{ lightText: '#ffffff' }} />,
   },
   {
@@ -40,7 +39,6 @@ const SECTIONS = [
     text: 'text-[#2d4654]',
     z: 'z-[20]',
     title: 'Projects',
-    subtitle: null,
     content: (
       <ProjectsSection
         projectIndex={0}
@@ -63,7 +61,6 @@ const SECTIONS = [
     text: 'text-[#2d4654]',
     z: 'z-[10]',
     title: 'Experience',
-    subtitle: null,
     content: (
       <ExperienceSection
         experienceIndex={0}
@@ -87,17 +84,14 @@ const StackedResumeMobile = () => {
   const [lastTapTime, setLastTapTime] = useState(0);
   const [viewState, setViewState] = useState('stacked');
   const [currentSlide, setCurrentSlide] = useState('avni');
-  
   // Add state for project and experience indices
   const [projectIndex, setProjectIndex] = useState(0);
   const [experienceIndex, setExperienceIndex] = useState(0);
-  
   // Animation states
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [transitionType, setTransitionType] = useState('default');
   const [edgeIndicator, setEdgeIndicator] = useState(null); // 'left', 'right', or null
-  
   // Refs for improved touch handling
   const touchStartX = useRef(null);
   const touchStartY = useRef(null); // For detecting vertical scrolling
@@ -106,13 +100,14 @@ const StackedResumeMobile = () => {
   const swipeVelocity = useRef(0);
   const isPanning = useRef(false);
   const containerRef = useRef(null);
-  
+  // Game overlay state
+  const [showGame, setShowGame] = useState(false);
+  const [gameFullscreen, setGameFullscreen] = useState(false);
   // Constants
   const slideKeys = SECTIONS.map(s => s.key);
   const currentIndex = slideKeys.indexOf(currentSlide);
   const hasPrevSlide = currentIndex > 0;
   const hasNextSlide = currentIndex < slideKeys.length - 1;
-  
   // Calculate container width for animations
   const getContainerWidth = () => {
     if (containerRef.current) {
@@ -121,10 +116,18 @@ const StackedResumeMobile = () => {
     return window.innerWidth;
   };
 
+  const handleCloseGame = () => {
+    setShowGame(false);
+    setGameFullscreen(false);
+  };
+  const toggleGameFullscreen = () => {
+    setGameFullscreen(f => !f);
+  };
+
   const handleEchoTap = () => {
     const now = Date.now();
     if (now - lastTapTime < 400) {
-      console.log("Launch Game"); // replace with real setShowGame(true) hookup later
+      setShowGame(true);
     }
     setLastTapTime(now);
   };
@@ -134,6 +137,7 @@ const StackedResumeMobile = () => {
     setViewState('carousel');
     setCurrentSlide(sectionKey);
   };
+
 
   // Animate between slides with velocity-based physics
   const animateToSlide = useCallback((direction, velocity = 1) => {
@@ -370,139 +374,187 @@ const StackedResumeMobile = () => {
     return 'transform 300ms cubic-bezier(0.2, 0.8, 0.25, 1)'; // Default
   };
 
-  // (removed: sectionsWithDynamicContent mapping logic)
+  // Map SECTIONS to inject dynamic content for Projects and Experience
+  const sectionsWithDynamicContent = SECTIONS.map(section => {
+    if (section.key === 'projects') {
+      return {
+        ...section,
+        content: (
+          <ProjectsSection
+            projectIndex={projectIndex}
+            setProjectIndex={setProjectIndex}
+            colors={{
+              text: '#2d4654',
+              lightText: '#2d4654',
+              layer3: '#c1666b',
+              layer4: '#94b9af',
+              center: '#2d4654'
+            }}
+            showNavigation={false}
+            showAllProjects={true}
+          />
+        ),
+      };
+    }
+    if (section.key === 'experience') {
+      return {
+        ...section,
+        content: (
+          <ExperienceSection
+            experienceIndex={experienceIndex}
+            setExperienceIndex={setExperienceIndex}
+            colors={{
+              text: '#2d4654',
+              lightText: '#2d4654'
+            }}
+            showNavigation={false}
+            showAllExperiences={true}
+          />
+        ),
+      };
+    }
+    return section;
+  });
 
   return (
-    <div className="min-h-screen p-4 flex flex-col items-center justify-start bg-[#f5f0e6]">
-      {/* Conditional layout */}
-      {viewState === 'stacked' ? (
-        <>
-          {/* Stacked layout: cards stacked vertically, tap any to go to carousel */}
-          {SECTIONS.map((section, idx) => (
-            <div
-              key={section.key}
-              className={`w-full max-w-md h-28 p-4 ${idx === 0 ? '' : '-mt-10'} rounded-lg shadow-lg ${section.bg} ${section.text} relative ${section.z} flex flex-col items-center`}
-              onClick={() => handleCardTap(section.key)}
-              style={{ 
-                cursor: 'pointer',
-                transform: 'translateZ(0)', // Hardware acceleration
-              }}
-            >
-              <div className={`flex flex-col items-center h-full w-full ${section.isAvni ? 'pt-4 mb-1' : 'pt-10'}`}>
-                <h1 className={`text-xl tracking-wider opacity-90 ${section.isAvni ? 'mb-2' : ''} text-center`} style={{ fontFamily: 'Menlo, Monaco, monospace' }}>
-                  {section.title}
-                </h1>
-                {section.subtitle && (
-                  <p className="text-lg opacity-80 text-center">{section.subtitle}</p>
-                )}
-              </div>
-              {/* EchoPet only on Avni card */}
-              {section.isAvni && (
-                <div
-                  className="absolute bottom-2 right-2 w-20 h-20"
-                  onClick={e => { e.stopPropagation(); handleEchoTap(); }}
-                >
-                  <EchoPet />
-                </div>
-              )}
-            </div>
-          ))}
-        </>
+    <>
+      {showGame ? (
+        <MobileGameOverlay
+          onClose={handleCloseGame}
+          isFullscreen={gameFullscreen}
+          toggleFullscreen={toggleGameFullscreen}
+        />
       ) : (
-        // Carousel view with optimized swipe mechanics
-        <div 
-          ref={containerRef}
-          className="w-full max-w-md flex-1 relative" 
-          style={{ minHeight: '70vh' }}
-          aria-live="polite" 
-          role="region" 
-          aria-label="Resume section viewer"
-        >
-          {/* Edge indicators */}
-          {edgeIndicator === 'left' && (
-            <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white/30 to-transparent z-10 pointer-events-none" />
-          )}
-          {edgeIndicator === 'right' && (
-            <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white/30 to-transparent z-10 pointer-events-none" />
-          )}
-          
-          {/* Current card with hardware acceleration */}
-          <div 
-            className={`w-full max-w-md h-[85vh] min-h-[85vh] p-6 rounded-lg shadow-lg ${SECTIONS[currentIndex].bg} ${SECTIONS[currentIndex].text} flex flex-col items-center justify-center`}
-            style={{
-              transform: `translateX(${swipeOffset}%) translateZ(0)`,
-              transition: getTransitionStyle(),
-              willChange: 'transform',
-              backfaceVisibility: 'hidden',
-            }}
-            role="tabpanel"
-            aria-label={SECTIONS[currentIndex].title}
-          >
-            {/* Use the section content directly */}
-            {SECTIONS[currentIndex].content ? (
-              <div className="w-full h-full overflow-y-auto">
-                {SECTIONS[currentIndex].content}
-              </div>
-            ) : (
-              <div className={`flex flex-col items-center h-full w-full ${SECTIONS[currentIndex].isAvni ? 'pt-4 mb-1' : 'pt-10'}`}>
-                <h1 className={`text-xl tracking-wider opacity-90 ${SECTIONS[currentIndex].isAvni ? 'mb-2' : ''} text-center`} style={{ fontFamily: 'Menlo, Monaco, monospace' }}>
-                  {SECTIONS[currentIndex].title}
-                </h1>
-                {SECTIONS[currentIndex].subtitle && (
-                  <p className="text-lg opacity-80 text-center">{SECTIONS[currentIndex].subtitle}</p>
+        <div className="min-h-screen p-4 flex flex-col items-center justify-start bg-[#f5f0e6]">
+          {/* Conditional layout */}
+          {viewState === 'stacked' ? (
+            <>
+              {/* Stacked layout: cards stacked vertically, tap any to go to carousel */}
+              {sectionsWithDynamicContent.map((section, idx) => (
+                <div
+                  key={section.key}
+                  className={`w-full max-w-md h-28 p-4 ${idx === 0 ? '' : '-mt-10'} rounded-lg shadow-lg ${section.bg} ${section.text} relative ${section.z} flex flex-col items-center`}
+                  onClick={() => handleCardTap(section.key)}
+                  style={{
+                    cursor: 'pointer',
+                    transform: 'translateZ(0)', // Hardware acceleration
+                  }}
+                >
+                  <div className={`flex flex-col items-center h-full w-full ${section.isAvni ? 'pt-4 mb-1' : 'pt-10'}`}>
+                    <h1 className={`text-xl tracking-wider opacity-90 ${section.isAvni ? 'mb-2' : ''} text-center`} style={{ fontFamily: 'Menlo, Monaco, monospace' }}>
+                      {section.title}
+                    </h1>
+                    {section.subtitle && (
+                      <p className="text-lg opacity-80 text-center">{section.subtitle}</p>
+                    )}
+                  </div>
+                  {/* EchoPet only on Avni card */}
+                  {section.isAvni && (
+                    <div
+                      className="absolute bottom-2 right-2 w-20 h-20"
+                      onClick={e => { e.stopPropagation(); handleEchoTap(); }}
+                    >
+                      <EchoPet />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </>
+          ) : (
+            // Carousel view with optimized swipe mechanics
+            <div
+              ref={containerRef}
+              className="w-full max-w-md flex-1 relative"
+              style={{ minHeight: '70vh' }}
+              aria-live="polite"
+              role="region"
+              aria-label="Resume section viewer"
+            >
+              {/* Edge indicators */}
+              {edgeIndicator === 'left' && (
+                <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white/30 to-transparent z-10 pointer-events-none" />
+              )}
+              {edgeIndicator === 'right' && (
+                <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white/30 to-transparent z-10 pointer-events-none" />
+              )}
+
+              {/* Current card with hardware acceleration */}
+              <div
+                className={`w-full max-w-md h-[85vh] min-h-[85vh] p-6 rounded-lg shadow-lg ${sectionsWithDynamicContent[currentIndex].bg} ${sectionsWithDynamicContent[currentIndex].text} flex flex-col items-center justify-center`}
+                style={{
+                  transform: `translateX(${swipeOffset}%) translateZ(0)`,
+                  transition: getTransitionStyle(),
+                  willChange: 'transform',
+                  backfaceVisibility: 'hidden',
+                }}
+                role="tabpanel"
+                aria-label={sectionsWithDynamicContent[currentIndex].title}
+              >
+                {/* Use the section content directly */}
+                {sectionsWithDynamicContent[currentIndex].content ?? (
+                  <div className={`flex flex-col items-center h-full w-full ${sectionsWithDynamicContent[currentIndex].isAvni ? 'pt-4 mb-1' : 'pt-10'}`}>
+                    <h1 className="text-xl tracking-wider opacity-90 text-center" style={{ fontFamily: 'Menlo, Monaco, monospace' }}>
+                      {sectionsWithDynamicContent[currentIndex].title}
+                    </h1>
+                    {sectionsWithDynamicContent[currentIndex].subtitle && (
+                      <p className="text-lg opacity-80 text-center">
+                        {sectionsWithDynamicContent[currentIndex].subtitle}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* EchoPet only on Avni card in stacked view */}
+                {sectionsWithDynamicContent[currentIndex].isAvni && viewState === 'stacked' && (
+                  <div
+                    className="absolute bottom-2 right-2 w-20 h-20"
+                    onClick={handleEchoTap}
+                  >
+                    <EchoPet />
+                  </div>
                 )}
               </div>
-            )}
-            
-            {/* EchoPet only on Avni card in stacked view */}
-            {SECTIONS[currentIndex].isAvni && viewState === 'stacked' && (
+
+              {/* Interactive navigation dots */}
               <div
-                className="absolute bottom-2 right-2 w-20 h-20"
-                onClick={handleEchoTap}
+                className="absolute bottom-6 left-1/2 -translate-x-1/2 flex justify-center space-x-3 px-5 py-2 rounded-full bg-white/20 backdrop-blur-md shadow-md shadow-black/10"
+                role="tablist"
+                aria-label="Resume sections"
               >
-                <EchoPet />
+                {sectionsWithDynamicContent.map((section, idx) => (
+                  <button
+                    key={`dot-${section.key}`}
+                    className={`h-2 rounded-full transition-all duration-300 ease-out ${
+                      idx === currentIndex
+                        ? 'bg-white w-4'
+                        : 'bg-white bg-opacity-40 hover:bg-opacity-60'
+                    }`}
+                    onClick={() => {
+                      if (idx !== currentIndex && !isAnimating) {
+                        setIsAnimating(true);
+                        setTransitionType(idx < currentIndex ? 'slide-prev' : 'slide-next');
+                        setSwipeOffset(idx < currentIndex ? 100 : -100);
+
+                        setTimeout(() => {
+                          setCurrentSlide(slideKeys[idx]);
+                          setSwipeOffset(0);
+                          setIsAnimating(false);
+                          setTransitionType('default');
+                        }, 350);
+                      }
+                    }}
+                    role="tab"
+                    aria-selected={idx === currentIndex}
+                    aria-label={`Go to ${section.title} section`}
+                    tabIndex={idx === currentIndex ? 0 : -1}
+                  />
+                ))}
               </div>
-            )}
-          </div>
-          
-          {/* Interactive navigation dots */}
-          <div 
-            className="absolute bottom-6 left-1/2 -translate-x-1/2 flex justify-center space-x-3 px-5 py-2 rounded-full bg-white/20 backdrop-blur-md shadow-md shadow-black/10"
-            role="tablist"
-            aria-label="Resume sections"
-          >
-            {SECTIONS.map((section, idx) => (
-              <button
-                key={`dot-${section.key}`}
-                className={`h-2 rounded-full transition-all duration-300 ease-out ${
-                  idx === currentIndex 
-                    ? 'bg-white w-4' 
-                    : 'bg-white bg-opacity-40 hover:bg-opacity-60'
-                }`}
-                onClick={() => {
-                  if (idx !== currentIndex && !isAnimating) {
-                    setIsAnimating(true);
-                    setTransitionType(idx < currentIndex ? 'slide-prev' : 'slide-next');
-                    setSwipeOffset(idx < currentIndex ? 100 : -100);
-                    
-                    setTimeout(() => {
-                      setCurrentSlide(slideKeys[idx]);
-                      setSwipeOffset(0);
-                      setIsAnimating(false);
-                      setTransitionType('default');
-                    }, 350);
-                  }
-                }}
-                role="tab"
-                aria-selected={idx === currentIndex}
-                aria-label={`Go to ${section.title} section`}
-                tabIndex={idx === currentIndex ? 0 : -1}
-              />
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </>
   );
 };
 
