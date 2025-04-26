@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EchoPet from './common/EchoPet';
 import EducationSection from './resume/EducationSection';
 import SkillsSection from './resume/SkillsSection';
+import ProjectsSection from './resume/ProjectsSection';
+import ExperienceSection from './resume/ExperienceSection';
 
 const SECTIONS = [
   {
@@ -39,7 +41,21 @@ const SECTIONS = [
     z: 'z-[20]',
     title: 'Projects',
     subtitle: null,
-    content: null,
+    content: (
+      <ProjectsSection
+        projectIndex={0}
+        setProjectIndex={() => {}}
+        colors={{
+          text: '#2d4654',
+          lightText: '#2d4654',
+          layer3: '#c1666b',
+          layer4: '#94b9af',
+          center: '#2d4654'
+        }}
+        showNavigation={false}
+        showAllProjects={true}
+      />
+    ),
   },
   {
     key: 'experience',
@@ -48,7 +64,18 @@ const SECTIONS = [
     z: 'z-[10]',
     title: 'Experience',
     subtitle: null,
-    content: null,
+    content: (
+      <ExperienceSection
+        experienceIndex={0}
+        setExperienceIndex={() => {}}
+        colors={{
+          text: '#2d4654',
+          lightText: '#2d4654'
+        }}
+        showNavigation={false}
+        showAllExperiences={true}
+      />
+    ),
   },
 ];
 
@@ -60,6 +87,10 @@ const StackedResumeMobile = () => {
   const [lastTapTime, setLastTapTime] = useState(0);
   const [viewState, setViewState] = useState('stacked');
   const [currentSlide, setCurrentSlide] = useState('avni');
+  
+  // Add state for project and experience indices
+  const [projectIndex, setProjectIndex] = useState(0);
+  const [experienceIndex, setExperienceIndex] = useState(0);
   
   // Animation states
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -339,6 +370,8 @@ const StackedResumeMobile = () => {
     return 'transform 300ms cubic-bezier(0.2, 0.8, 0.25, 1)'; // Default
   };
 
+  // (removed: sectionsWithDynamicContent mapping logic)
+
   return (
     <div className="min-h-screen p-4 flex flex-col items-center justify-start bg-[#f5f0e6]">
       {/* Conditional layout */}
@@ -405,6 +438,7 @@ const StackedResumeMobile = () => {
             role="tabpanel"
             aria-label={SECTIONS[currentIndex].title}
           >
+            {/* Use the section content directly */}
             {SECTIONS[currentIndex].content ? (
               <div className="w-full h-full overflow-y-auto">
                 {SECTIONS[currentIndex].content}
@@ -430,8 +464,6 @@ const StackedResumeMobile = () => {
               </div>
             )}
           </div>
-          
-          {/* Next/Prev navigation buttons for accessibility */}
           
           {/* Interactive navigation dots */}
           <div 
