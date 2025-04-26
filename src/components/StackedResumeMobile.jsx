@@ -53,13 +53,13 @@ const SECTIONS = [
 ];
 
 const StackedResumeMobile = () => {
-  // iOS detection
-  // const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const [lastTapTime, setLastTapTime] = useState(0);
-  // New view state: 'stacked' or 'carousel'
   const [viewState, setViewState] = useState('stacked');
-  // Current slide key (e.g., 'education'), only relevant for carousel
   const [currentSlide, setCurrentSlide] = useState('avni');
+  
+  // New state for swipe animation
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const handleEchoTap = () => {
     const now = Date.now();
@@ -80,16 +80,39 @@ const StackedResumeMobile = () => {
   const currentIndex = slideKeys.indexOf(currentSlide);
 
   const goToPrevSlide = () => {
+    if (isAnimating) return;
+    
     if (currentIndex === 0) {
       // If on first card ('avni'), swiping right returns to stacked
       setViewState('stacked');
     } else if (currentIndex > 0) {
-      setCurrentSlide(slideKeys[currentIndex - 1]);
+      setIsAnimating(true);
+      // Start animation
+      setSwipeOffset(100);
+      
+      // After animation completes, update the current slide
+      setTimeout(() => {
+        setCurrentSlide(slideKeys[currentIndex - 1]);
+        setSwipeOffset(0);
+        setIsAnimating(false);
+      }, 300);
     }
   };
+  
   const goToNextSlide = () => {
+    if (isAnimating) return;
+    
     if (currentIndex < slideKeys.length - 1) {
-      setCurrentSlide(slideKeys[currentIndex + 1]);
+      setIsAnimating(true);
+      // Start animation
+      setSwipeOffset(-100);
+      
+      // After animation completes, update the current slide
+      setTimeout(() => {
+        setCurrentSlide(slideKeys[currentIndex + 1]);
+        setSwipeOffset(0);
+        setIsAnimating(false);
+      }, 300);
     }
   };
 
@@ -105,40 +128,84 @@ const StackedResumeMobile = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-    // eslint-disable-next-line
-  }, [viewState, currentSlide]);
+  }, [viewState, currentSlide, isAnimating]);
 
   // Touch swipe gesture support for carousel view
   const touchStartX = useRef(null);
+  const touchStartTime = useRef(null);
+  
   useEffect(() => {
     if (viewState !== 'carousel') return;
 
     const handleTouchStart = (e) => {
+      if (isAnimating) return;
       touchStartX.current = e.touches[0].clientX;
+      touchStartTime.current = Date.now();
+    };
+    
+    const handleTouchMove = (e) => {
+      if (touchStartX.current === null || isAnimating) return;
+      
+      // Calculate how far finger has moved
+      const currentX = e.touches[0].clientX;
+      const deltaX = currentX - touchStartX.current;
+      
+      // Convert to percentage of screen width
+      const containerWidth = window.innerWidth;
+      const percentMove = (deltaX / containerWidth) * 100;
+      
+      // Apply limits and resistance at edges
+      let newOffset = percentMove;
+      if ((currentIndex === 0 && newOffset > 0) || 
+          (currentIndex === slideKeys.length - 1 && newOffset < 0)) {
+        newOffset = newOffset * 0.2; // Add stronger resistance at edges
+      }
+      
+      setSwipeOffset(newOffset);
     };
 
     const handleTouchEnd = (e) => {
-      if (touchStartX.current === null) return;
+      if (touchStartX.current === null || isAnimating) return;
+      
       const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-
-      if (Math.abs(deltaX) > 50) {
+      const timeDelta = Date.now() - touchStartTime.current;
+      
+      // Threshold for swipe - either distance or velocity
+      const distanceThreshold = window.innerWidth * 0.2; // 20% of screen width
+      const velocityThreshold = 0.2; // pixels per ms
+      
+      const velocity = Math.abs(deltaX) / timeDelta;
+      const isSwipe = Math.abs(deltaX) > distanceThreshold || velocity > velocityThreshold;
+      
+      if (isSwipe) {
         if (deltaX > 0) {
           goToPrevSlide();
         } else {
           goToNextSlide();
         }
+      } else {
+        // Reset position with animation
+        setIsAnimating(true);
+        setTimeout(() => {
+          setSwipeOffset(0);
+          setIsAnimating(false);
+        }, 150);
       }
+      
       touchStartX.current = null;
+      touchStartTime.current = null;
     };
 
-    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
     window.addEventListener('touchend', handleTouchEnd);
 
     return () => {
       window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [viewState, currentSlide]);
+  }, [viewState, currentSlide, isAnimating, currentIndex]);
 
   return (
     <div className="min-h-screen p-4 flex flex-col items-center justify-start bg-[#f5f0e6]">
@@ -174,46 +241,52 @@ const StackedResumeMobile = () => {
           ))}
         </>
       ) : (
-        // Carousel view
-        <div className="w-full max-w-md flex-1 flex flex-col items-center justify-center relative" style={{ minHeight: '70vh' }}>
-          <div className="flex flex-row w-full h-full overflow-x-hidden transition-transform duration-300" style={{ touchAction: 'pan-y' }}>
-            {SECTIONS.map((section, idx) => (
-              <div
-                key={section.key}
-                className={`w-full min-w-full max-w-md h-[85vh] min-h-[85vh] p-6 flex flex-col items-center justify-center rounded-lg shadow-lg ${section.bg} ${section.text} relative ${section.z} transition-all duration-300`}
-                style={{
-                  transform: `translateX(${(idx - currentIndex) * 100}%)`,
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  opacity: idx === currentIndex ? 1 : 0,
-                  zIndex: idx === currentIndex ? 2 : 1,
-                }}
-              >
-                {section.content ? (
-                  <div className="w-full h-full overflow-y-auto">{section.content}</div>
-                ) : (
-                  <div className={`flex flex-col items-center h-full w-full ${section.isAvni ? 'pt-4 mb-1' : 'pt-10'}`}>
-                    <h1 className={`text-xl tracking-wider opacity-90 ${section.isAvni ? 'mb-2' : ''} text-center`} style={{ fontFamily: 'Menlo, Monaco, monospace' }}>
-                      {section.title}
-                    </h1>
-                    {section.subtitle && (
-                      <p className="text-lg opacity-80 text-center">{section.subtitle}</p>
-                    )}
-                  </div>
-                )}
-                {/* EchoPet only on Avni card */}
-                {section.isAvni && (
-                  <div
-                    className="absolute bottom-2 right-2 w-20 h-20"
-                    onClick={e => { e.stopPropagation(); handleEchoTap(); }}
-                  >
-                    <EchoPet />
-                  </div>
+        // Carousel view with simplified swipe mechanics
+        <div className="w-full max-w-md flex-1 relative" style={{ minHeight: '70vh' }}>
+          {/* Current card */}
+          <div 
+            className={`w-full max-w-md h-[85vh] min-h-[85vh] p-6 rounded-lg shadow-lg ${SECTIONS[currentIndex].bg} ${SECTIONS[currentIndex].text} flex flex-col items-center justify-center`}
+            style={{
+              transition: 'transform 300ms ease-out',
+              transform: `translateX(${swipeOffset}%)`,
+            }}
+          >
+            {SECTIONS[currentIndex].content ? (
+              <div className="w-full h-full overflow-y-auto">
+                {SECTIONS[currentIndex].content}
+              </div>
+            ) : (
+              <div className={`flex flex-col items-center h-full w-full ${SECTIONS[currentIndex].isAvni ? 'pt-4 mb-1' : 'pt-10'}`}>
+                <h1 className={`text-xl tracking-wider opacity-90 ${SECTIONS[currentIndex].isAvni ? 'mb-2' : ''} text-center`} style={{ fontFamily: 'Menlo, Monaco, monospace' }}>
+                  {SECTIONS[currentIndex].title}
+                </h1>
+                {SECTIONS[currentIndex].subtitle && (
+                  <p className="text-lg opacity-80 text-center">{SECTIONS[currentIndex].subtitle}</p>
                 )}
               </div>
+            )}
+            
+            {/* EchoPet only on Avni card */}
+            {SECTIONS[currentIndex].isAvni && (
+              <div
+                className="absolute bottom-2 right-2 w-20 h-20"
+                onClick={handleEchoTap}
+              >
+                <EchoPet />
+              </div>
+            )}
+          </div>
+          
+          {/* Navigation dots */}
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2">
+            {SECTIONS.map((section, idx) => (
+              <div 
+                key={`dot-${section.key}`}
+                className={`w-2 h-2 rounded-full transition-colors duration-300 ${idx === currentIndex ? 'bg-white' : 'bg-white bg-opacity-40'}`}
+              />
             ))}
           </div>
+          
           {/* Back to stacked button if on first card */}
           {currentIndex === 0 && (
             <button
