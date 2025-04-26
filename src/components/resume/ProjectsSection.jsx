@@ -1,17 +1,17 @@
 // src/components/resume/ProjectsSection.jsx
 import React from 'react';
 import PropTypes from 'prop-types';
+import { projects } from '../../constants/projectsData';
 
 /**
  * Projects section component for the resume
  * 
  * @param {Object} props - Component props
- * @param {Array} props.projects - Array of project objects
  * @param {number} props.projectIndex - Current project index
  * @param {Function} props.setProjectIndex - Function to update project index
  * @param {Object} props.colors - Color scheme
  */
-const ProjectsSection = ({ projects, projectIndex, setProjectIndex, colors }) => {
+const ProjectsSection = ({ projectIndex, setProjectIndex, colors }) => {
   const currentProject = projects[projectIndex];
   
   // Stop propagation to prevent closing when clicking inside the section
@@ -134,13 +134,6 @@ const ProjectsSection = ({ projects, projectIndex, setProjectIndex, colors }) =>
 };
 
 ProjectsSection.propTypes = {
-  projects: PropTypes.arrayOf(
-    PropTypes.shape({
-      title: PropTypes.string.isRequired,
-      link: PropTypes.string,
-      bullets: PropTypes.arrayOf(PropTypes.string).isRequired
-    })
-  ).isRequired,
   projectIndex: PropTypes.number.isRequired,
   setProjectIndex: PropTypes.func.isRequired,
   colors: PropTypes.object.isRequired
