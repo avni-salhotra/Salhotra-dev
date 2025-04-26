@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import EchoPet from './common/EchoPet';
+import EducationSection from './resume/EducationSection';
+import SkillsSection from './resume/SkillsSection';
 
 const SECTIONS = [
   {
@@ -19,7 +21,7 @@ const SECTIONS = [
     z: 'z-[40]',
     title: 'Education',
     subtitle: null,
-    content: null,
+    content: <EducationSection colors={{ lightText: '#ffffff' }} />,
   },
   {
     key: 'skills',
@@ -28,7 +30,7 @@ const SECTIONS = [
     z: 'z-[30]',
     title: 'Skills',
     subtitle: null,
-    content: null,
+    content: <SkillsSection colors={{ lightText: '#ffffff' }} />,
   },
   {
     key: 'projects',
@@ -188,14 +190,18 @@ const StackedResumeMobile = () => {
                   zIndex: idx === currentIndex ? 2 : 1,
                 }}
               >
-                <div className={`flex flex-col items-center h-full w-full ${section.isAvni ? 'pt-4 mb-1' : 'pt-10'}`}>
-                  <h1 className={`text-xl tracking-wider opacity-90 ${section.isAvni ? 'mb-2' : ''} text-center`} style={{ fontFamily: 'Menlo, Monaco, monospace' }}>
-                    {section.title}
-                  </h1>
-                  {section.subtitle && (
-                    <p className="text-lg opacity-80 text-center">{section.subtitle}</p>
-                  )}
-                </div>
+                {section.content ? (
+                  <div className="w-full h-full overflow-y-auto">{section.content}</div>
+                ) : (
+                  <div className={`flex flex-col items-center h-full w-full ${section.isAvni ? 'pt-4 mb-1' : 'pt-10'}`}>
+                    <h1 className={`text-xl tracking-wider opacity-90 ${section.isAvni ? 'mb-2' : ''} text-center`} style={{ fontFamily: 'Menlo, Monaco, monospace' }}>
+                      {section.title}
+                    </h1>
+                    {section.subtitle && (
+                      <p className="text-lg opacity-80 text-center">{section.subtitle}</p>
+                    )}
+                  </div>
+                )}
                 {/* EchoPet only on Avni card */}
                 {section.isAvni && (
                   <div
