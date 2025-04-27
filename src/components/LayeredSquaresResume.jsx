@@ -25,7 +25,9 @@ const LayeredSquaresResume = () => {
   // Resume state using custom hook
   const {
     activeSection,
+    setActiveSection,
     isTransitioning,
+    setIsTransitioning,
     initialLoad,
     experienceIndex,
     setExperienceIndex,
@@ -39,18 +41,38 @@ const LayeredSquaresResume = () => {
   // Dog animation state using custom hook
   const { dogX, echoState, echoDirection } = useEchoAnimation();
 
+  // Handle browser back/forward buttons
   useEffect(() => {
-    const handlePopState = () => {
-      if (window.location.pathname !== '/game') {
+    const handlePopState = (event) => {
+      // First, prevent rapid transitions
+      setIsTransitioning(true);
+      
+      // Check the path from the URL
+      const path = window.location.pathname.replace('/', '');
+      
+      if (path === 'game') {
+        setShowGame(true);
+        setActiveSection(null);
+      } else if (['experience', 'projects', 'skills', 'education'].includes(path)) {
         setShowGame(false);
+        setActiveSection(path);
+      } else {
+        // Home state
+        setShowGame(false);
+        setActiveSection(null);
       }
+      
+      // Re-enable transitions after a short delay
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 100);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []);
+  }, [setActiveSection, setShowGame, setIsTransitioning]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: colors.background }}>
@@ -149,7 +171,7 @@ const LayeredSquaresResume = () => {
           <PersonalInfo 
             colors={colors} 
             onClick={() => {
-              window.history.pushState({}, '', '/game');
+              window.history.pushState({ page: 'game' }, '', '/game');
               setShowGame(true);
             }}
             dogX={dogX}
@@ -188,28 +210,23 @@ const LayeredSquaresResume = () => {
         
         {/* RETURN label for expanded section */}
         {activeSection && (
-          <div className="absolute top-0 left-0 -translate-y-full ml-1 text-xs sm:text-sm md:text-base font-mono text-black opacity-80 tracking-wider cursor-pointer animate-pixelAppear"
-               onClick={() => handleSectionClick(activeSection)}>
+          <div
+            className="absolute top-0 left-0 -translate-y-full ml-1 text-xs sm:text-sm md:text-base font-mono text-black opacity-80 tracking-wider cursor-pointer animate-pixelAppear"
+            onClick={() => {
+              window.history.pushState({ page: 'home' }, '', '/');
+              setActiveSection(null);
+            }}
+          >
             ← RETURN
           </div>
         )}
       </div>
-      {showGame && <GameOverlay onClose={() => setShowGame(false)} />}
+      {showGame && <GameOverlay onClose={() => {
+        window.history.pushState({ page: 'home' }, '', '/');
+        setShowGame(false);
+      }} />}
     </div>
   );
 };
 
 export default LayeredSquaresResume;
-
-// Retro pixel animation for section labels
-<style>
-{`
-  @keyframes pixelAppear {
-    0% { opacity: 0; transform: scale(0.95) translateY(4px); filter: blur(1px); }
-    100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
-  }
-  .animate-pixelAppear {
-    animation: pixelAppear 0.6s ease-out forwards;
-  }
-`}
-</style>
