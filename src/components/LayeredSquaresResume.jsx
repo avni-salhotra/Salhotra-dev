@@ -1,5 +1,5 @@
 // src/components/LayeredSquaresResume.jsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import GameOverlay from './game/GameOverlay';
 import EchoPet from './common/EchoPet';
 import LayerCard from './common/LayerCard';
@@ -38,6 +38,19 @@ const LayeredSquaresResume = () => {
 
   // Dog animation state using custom hook
   const { dogX, echoState, echoDirection } = useEchoAnimation();
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname !== '/game') {
+        setShowGame(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: colors.background }}>
@@ -135,7 +148,10 @@ const LayeredSquaresResume = () => {
         >
           <PersonalInfo 
             colors={colors} 
-            onClick={() => setShowGame(true)}
+            onClick={() => {
+              window.history.pushState({}, '', '/game');
+              setShowGame(true);
+            }}
             dogX={dogX}
             echoState={echoState}
             echoDirection={echoDirection}

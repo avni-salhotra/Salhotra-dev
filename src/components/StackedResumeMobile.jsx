@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MobileGameOverlay from './game/MobileGameOverlay';
 import EchoPet from './common/EchoPet';
 import EducationSection from './resume/EducationSection';
@@ -81,6 +82,7 @@ const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 const easeOutExpo = t => (t === 1) ? 1 : 1 - Math.pow(2, -10 * t);
 
 const StackedResumeMobile = () => {
+  const navigate = useNavigate();
   const [lastTapTime, setLastTapTime] = useState(0);
   const [viewState, setViewState] = useState('stacked');
   const [currentSlide, setCurrentSlide] = useState('avni');
@@ -125,11 +127,7 @@ const StackedResumeMobile = () => {
   };
 
   const handleEchoTap = () => {
-    const now = Date.now();
-    if (now - lastTapTime < 400) {
-      setShowGame(true);
-    }
-    setLastTapTime(now);
+    navigate('/game');
   };
 
   // When a card is tapped in stacked mode, go to carousel and set currentSlide
