@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import MobileGameOverlay from './game/MobileGameOverlay';
 import EchoPet from './common/EchoPet';
 import EducationSection from './resume/EducationSection';
@@ -81,6 +82,8 @@ const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 const easeOutExpo = t => (t === 1) ? 1 : 1 - Math.pow(2, -10 * t);
 
 const StackedResumeMobile = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [lastTapTime, setLastTapTime] = useState(0);
   const [viewState, setViewState] = useState('stacked');
   const [currentSlide, setCurrentSlide] = useState('avni');
@@ -116,28 +119,88 @@ const StackedResumeMobile = () => {
     return window.innerWidth;
   };
 
+  // Initialize history state if needed
+  useEffect(() => {
+    // Create an initial history entry if one doesn't exist
+    if (window.history.state === null) {
+      window.history.replaceState({ page: 'home', view: 'stacked' }, '', window.location.pathname);
+    }
+    
+    // Initialize based on URL path
+    const path = location.pathname.replace('/', '');
+    
+    if (path === 'game') {
+      setShowGame(true);
+    } else if (['education', 'skills', 'projects', 'experience'].includes(path)) {
+      setViewState('carousel');
+      setCurrentSlide(path);
+    }
+  }, [location.pathname]);
+
+  // Handle back/forward button navigation
+  useEffect(() => {
+    const handlePopState = (event) => {
+      // Get the path from the URL
+      const path = window.location.pathname.replace('/', '');
+      
+      // Prevent animation glitches during navigation
+      setIsAnimating(true);
+      
+      if (path === 'game') {
+        setShowGame(true);
+        setViewState('stacked');
+      } else if (['education', 'skills', 'projects', 'experience'].includes(path)) {
+        setShowGame(false);
+        setViewState('carousel');
+        setCurrentSlide(path);
+      } else {
+        // Home state
+        setShowGame(false);
+        setViewState('stacked');
+      }
+      
+      // Re-enable animations after a short delay
+      setTimeout(() => {
+        setIsAnimating(false);
+      }, 100);
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
   const handleCloseGame = () => {
+    // Update URL and history
+    window.history.pushState({ page: 'home', view: 'stacked' }, '', '/');
     setShowGame(false);
     setGameFullscreen(false);
   };
+
   const toggleGameFullscreen = () => {
     setGameFullscreen(f => !f);
   };
 
   const handleEchoTap = () => {
-    const now = Date.now();
-    if (now - lastTapTime < 400) {
-      setShowGame(true);
-    }
-    setLastTapTime(now);
+    // Update URL and history
+    window.history.pushState({ page: 'game' }, '', '/game');
+    navigate('/game');
   };
 
   // When a card is tapped in stacked mode, go to carousel and set currentSlide
   const handleCardTap = (sectionKey) => {
+    if (sectionKey === 'avni') {
+      // Don't navigate for the main card
+      return;
+    }
+    
+    // Update URL and history - this is key for back button support
+    window.history.pushState({ page: sectionKey, view: 'carousel' }, '', `/${sectionKey}`);
+    
     setViewState('carousel');
     setCurrentSlide(sectionKey);
   };
-
 
   // Animate between slides with velocity-based physics
   const animateToSlide = useCallback((direction, velocity = 1) => {
@@ -150,15 +213,25 @@ const StackedResumeMobile = () => {
     
     if (direction === 'prev') {
       if (currentIndex === 0) {
-        // Back to stacked view
+        // Back to stacked view - update URL and history
+        window.history.pushState({ page: 'home', view: 'stacked' }, '', '/');
         setViewState('stacked');
       } else {
         setIsAnimating(true);
         setTransitionType('slide-prev');
         setSwipeOffset(100);
         
+        const prevSlide = slideKeys[currentIndex - 1];
+        
         setTimeout(() => {
-          setCurrentSlide(slideKeys[currentIndex - 1]);
+          // Update URL and history for the previous slide
+          if (prevSlide !== 'avni') {
+            window.history.pushState({ page: prevSlide, view: 'carousel' }, '', `/${prevSlide}`);
+          } else {
+            window.history.pushState({ page: 'home', view: 'carousel' }, '', '/');
+          }
+          
+          setCurrentSlide(prevSlide);
           setSwipeOffset(0);
           setIsAnimating(false);
           setTransitionType('default');
@@ -171,8 +244,13 @@ const StackedResumeMobile = () => {
         setTransitionType('slide-next');
         setSwipeOffset(-100);
         
+        const nextSlide = slideKeys[currentIndex + 1];
+        
         setTimeout(() => {
-          setCurrentSlide(slideKeys[currentIndex + 1]);
+          // Update URL and history for the next slide
+          window.history.pushState({ page: nextSlide, view: 'carousel' }, '', `/${nextSlide}`);
+          
+          setCurrentSlide(nextSlide);
           setSwipeOffset(0);
           setIsAnimating(false);
           setTransitionType('default');
@@ -470,6 +548,18 @@ const StackedResumeMobile = () => {
               role="region"
               aria-label="Resume section viewer"
             >
+              {/* Back button for carousel view */}
+              <div
+                className="absolute top-0 left-0 z-50 px-4 py-2 text-sm font-mono text-black bg-white bg-opacity-30 backdrop-blur-sm rounded-br-lg cursor-pointer shadow-md"
+                onClick={() => {
+                  // Update URL and history
+                  window.history.pushState({ page: 'home', view: 'stacked' }, '', '/');
+                  setViewState('stacked');
+                }}
+              >
+                ← BACK
+              </div>
+            
               {/* Edge indicators */}
               {edgeIndicator === 'left' && (
                 <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white/30 to-transparent z-10 pointer-events-none" />
@@ -536,6 +626,13 @@ const StackedResumeMobile = () => {
                         setSwipeOffset(idx < currentIndex ? 100 : -100);
 
                         setTimeout(() => {
+                          // Update URL and history
+                          if (section.key !== 'avni') {
+                            window.history.pushState({ page: section.key, view: 'carousel' }, '', `/${section.key}`);
+                          } else {
+                            window.history.pushState({ page: 'home', view: 'carousel' }, '', '/');
+                          }
+                          
                           setCurrentSlide(slideKeys[idx]);
                           setSwipeOffset(0);
                           setIsAnimating(false);
