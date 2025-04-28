@@ -61,3 +61,91 @@ This project demonstrates real-world production techniques in interactive web de
 Future expansions may include enhanced animations, progressive web app (PWA) support, and continuous performance tuning.
 
 ---
+# salhotra.dev
+
+An interactive, production-grade portfolio and resume website built with React, Tailwind CSS, and native Canvas API. Features layered UI navigation, SPA architecture, animated sprite companions, and a mobile-first runner game.
+
+Deployed live via [salhotra.dev](https://www.salhotra.dev) using Cloudflare Pages.
+
+---
+
+## ✨ Overview
+
+**salhotra.dev** is designed for **cross-device, high-performance browsing**:
+- **Layered desktop resume** with animated card stacking (hover/click to open)
+- **Mobile-first stacked resume** with **swipeable card carousel** for touch devices
+- **Embedded runner game** (playable directly from homepage or via `/game`)
+- **Animated EchoPet** sprite companion with real-time sprite sheet animation
+
+This project emphasizes **modularity**, **mobile optimization**, **realistic production practices**, and **interactive frontend craftsmanship**.
+
+---
+
+## 🧩 Key Features
+
+- **SPA Routing**: Built as a true single-page app with `react-router-dom`
+- **Layered Desktop UI**: Clickable cards with smooth 3D layering transitions
+- **Mobile Card Carousel**: Gesture-based swipe navigation across resume sections
+- **Embedded Game Engine**: HTML5 Canvas runner game with mobile tap-to-jump support
+- **Custom Animation Hooks**: Sprite animation (`useEchoAnimation`), game state control (`useGameLogic`)
+- **Dynamic State Management**: URL-driven view state syncing for true SPA behavior
+- **Responsive and Accessible**: Keyboard, touch, and pointer input compatibility
+- **Cloudflare Deployment**: CI/CD optimized for minimal downtime and fast loads
+
+---
+
+## 🛠 Technology Stack
+
+| Purpose | Tech |
+|:---|:---|
+| Frontend Framework | React 19 |
+| Styling | Tailwind CSS |
+| Animation | Native Canvas API (JavaScript) |
+| Routing | react-router-dom |
+| Hosting | Cloudflare Pages |
+| Version Control | GitHub |
+
+---
+
+## 🎮 Gameplay Mechanics
+
+- **Direct Access**: Enter the game by clicking the dog sprite or visiting `/game`
+- **Jump Controls**: 
+  - Desktop: `Spacebar` or `Up Arrow`
+  - Mobile: Tap the game screen
+- **Collision and Physics**: Responsive, framerate-independent motion
+- **Guaranteed Exit**: Bulletproof game exit mechanics for Android/iOS browser quirks
+
+---
+
+## 📦 Local Development
+
+```bash
+git clone https://github.com/avni-salhotra/salhotra-dev.git
+cd salhotra-dev
+npm install
+npm run dev
+```
+
+Local server runs at `http://localhost:5173` (or specified Vite dev port).
+
+---
+
+## 📋 Notes
+
+This project reflects **real-world frontend engineering principles**:
+- Modularized codebase with reusable components and hooks
+- Cross-platform performance tuning (tested across Chrome, Safari, Firefox, Android, iOS)
+- SPA architecture with **back button support** and **dynamic page state** persistence
+- Production-oriented hosting, HTTPS hardening, and asset optimization
+
+**Future directions** may include:
+- Progressive Web App (PWA) support
+- Expanded EchoPet animations (idling, playful states)
+- Deep-linkable game scores or trophies
+
+---
+
+# 🔥 Deployment
+
+Live production site: [https://www.salhotra.dev](https://www.salhotra.dev)

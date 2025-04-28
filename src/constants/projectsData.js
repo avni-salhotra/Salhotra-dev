@@ -7,11 +7,11 @@ export const projects = [
       title: "Layered Resume Website",
       link: "https://salhotra.dev",
       bullets: [
-        "Built an interactive resume website with React and Tailwind CSS, featuring layered card UI and embedded canvas-based mini-game.",
-        "Implemented custom React hooks to modularize animation, sprite control, and game logic — improving reusability and testability.",
-        "Engineered a real-time runner game using canvas with sprite sheet animation, collision detection, and debug rendering.",
-        "Designed an idle sprite logic system with directional flipping, randomized behavior states, and custom animation timing.",
-        "Deployed on Netlify with custom domain, DNS, and TLS configuration for production readiness."
+        "Architected a full single-page application (SPA) with React Router, supporting URL-based deep linking, browser navigation (back/forward), and dynamic route-driven state transitions.",
+        "Engineered a dual-mode responsive layout: layered resume UI for desktop and a swipe-based, mobile-optimized carousel for smaller devices.",
+        "Integrated custom-built mini-game (Echo runner) with two distinct overlays: desktop and mobile versions, using Canvas API and frame-rate normalized physics engine.",
+        "Designed and animated an interactive sprite pet (EchoPet) with idle behavior, directional flipping, and frame-based animation control.",
+        "Deployed production build on Cloudflare Pages with DNS, TLS, and cache configuration for high availability and global edge delivery."
       ]
     },
     {
