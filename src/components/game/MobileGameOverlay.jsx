@@ -7,8 +7,8 @@ import useGameLogic from '../../hooks/useGameLogic';
  * 
  * @param {Object} props - Component props
  * @param {Function} props.onClose - Function to close the game
- * @param {boolean} props.isFullscreen - Whether the game is in fullscreen mode
- * @param {Function} props.toggleFullscreen - Function to toggle fullscreen mode
+ * @param {boolean} props.isFullscreen - Whether the game is in fullscreen mode (not used anymore)
+ * @param {Function} props.toggleFullscreen - Function to toggle fullscreen mode (not used anymore)
  */
 const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
   const canvasRef = useRef(null);
@@ -19,6 +19,20 @@ const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
     width: window.innerWidth,
     height: window.innerHeight - 100
   });
+  
+  // Guaranteed exit function that uses the exact same logic as handleCloseGame in the parent
+  const guaranteedExit = () => {
+    // This is exactly what handleCloseGame does in StackedResumeMobile.jsx
+    window.history.pushState({ page: 'home', view: 'stacked' }, '', '/');
+    
+    // Force DOM navigation to ensure we exit the game
+    window.location.href = '/';
+    
+    // We'll still try the regular onClose as a fallback
+    if (typeof onClose === 'function') {
+      onClose();
+    }
+  };
   
   // Game state from custom hook
   const {
@@ -45,6 +59,8 @@ const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
     // Create and load dog image
     const goldenDog = new Image();
     dogImageRef.current = goldenDog;
+    
+    // Always use the original sprite path that works on iOS
     goldenDog.src = "/echo-sprite/echo-side.png";
     
     goldenDog.onload = () => { 
@@ -54,8 +70,17 @@ const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
     
     goldenDog.onerror = (err) => {
       console.error("Failed to load dog sprite:", err);
-      setLoadingMessage("Error loading dog sprite. Using fallback.");
-      setAssetsLoaded(true); // Continue anyway with fallback
+      // Try fallback if original path fails
+      goldenDog.src = "/public/echo-sprite/echo-side.png";
+      goldenDog.onload = () => {
+        console.log("Fallback dog sprite loaded");
+        setAssetsLoaded(true);
+      };
+      goldenDog.onerror = () => {
+        console.error("All sprite loading attempts failed");
+        setLoadingMessage("Error loading dog sprite. Using fallback.");
+        setAssetsLoaded(true); // Continue anyway with fallback
+      };
     };
     
     // Safety timeout in case images never load
@@ -69,7 +94,7 @@ const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
     };
   }, []);
 
-  // Handle resize for fullscreen mode (now always use real window size)
+  // Handle resize for screen size changes
   useEffect(() => {
     const updateCanvasDimensions = () => {
       if (canvasRef.current) {
@@ -86,7 +111,7 @@ const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
       }
     };
 
-    // Update dimensions immediately when fullscreen changes
+    // Update dimensions immediately
     updateCanvasDimensions();
 
     // Also listen for resize events
@@ -97,7 +122,7 @@ const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
       window.removeEventListener('resize', updateCanvasDimensions);
       window.removeEventListener('orientationchange', updateCanvasDimensions);
     };
-  }, [isFullscreen]);
+  }, []);
 
   // Drawing function for the game
   useEffect(() => {
@@ -106,7 +131,7 @@ const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     
-    // Set canvas dimensions based on fullscreen state
+    // Set canvas dimensions
     canvas.width = canvasDimensions.width;
     canvas.height = canvasDimensions.height;
     
@@ -197,20 +222,70 @@ const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
       if (dogImageRef.current && dogImageRef.current.complete) {
         const frameWidth = 48;
         const frameHeight = 48;
-        const row = player.isJumping ? 0 : 2;
-        const frame = 0;
         
-        ctx.save();
-        ctx.translate(player.x + player.width, player.y);
-        ctx.scale(-1, 1);
-        ctx.drawImage(
-          dogImageRef.current,
-          frame * frameWidth, row * frameHeight,
-          frameWidth, frameHeight,
-          0, 0,
-          player.width, player.height
-        );
-        ctx.restore();
+        try {
+          ctx.save();
+          
+          // Get exact ground position
+          const exactGroundY = gameState.groundY;
+          
+          // Calculate where to position the sprite so feet are at ground level
+          const feetPositionInSprite = player.height * 0.85;
+          
+          // For jumping, apply a more visible animation by using proper sprite row
+          // and ensuring the jump height is visibly noticeable
+          const row = player.isJumping ? 0 : 2; // Row 0 has jumping animation frames
+          const frame = player.isJumping ? Math.floor(Date.now() / 100) % 8 : 0; // Animate while jumping
+          
+          // If jumping, ensure the sprite is visibly higher than the obstacle
+          let spriteTopY;
+          if (player.isJumping) {
+            // Use the actual player.y which includes physics-based jump height
+            spriteTopY = player.y;
+            
+            // Add extra visual emphasis for the jump if needed
+            if (player.vy < 0) { // Moving upward
+              // Exaggerate the upward movement slightly for better visibility
+              spriteTopY -= 5;
+            }
+          } else {
+            // When on ground, align with ground level
+            spriteTopY = exactGroundY - feetPositionInSprite;
+          }
+          
+          // Draw at the calculated position
+          ctx.translate(player.x + player.width, spriteTopY);
+          ctx.scale(-1, 1);
+          
+          // Draw the sprite
+          ctx.drawImage(
+            dogImageRef.current,
+            frame * frameWidth, row * frameHeight,
+            frameWidth, frameHeight,
+            0, 0,
+            player.width, player.height
+          );
+          
+          // Draw ground reference line for debugging
+          if (gameState.debugMode) {
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, player.width, player.height);
+            
+            // Draw horizontal line at dog's feet position
+            ctx.beginPath();
+            ctx.moveTo(-10, feetPositionInSprite);
+            ctx.lineTo(player.width + 10, feetPositionInSprite);
+            ctx.stroke();
+          }
+          
+          ctx.restore();
+        } catch (err) {
+          console.error("Error drawing sprite:", err);
+          // Fallback if sprite drawing fails
+          ctx.fillStyle = 'yellow';
+          ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
       } else {
         // Fallback if image not loaded
         ctx.fillStyle = 'yellow';
@@ -262,42 +337,41 @@ const MobileGameOverlay = ({ onClose, isFullscreen, toggleFullscreen }) => {
   };
 
   return (
-    <div className={`${isFullscreen ? 'fixed inset-0 z-[9999] bg-black' : 'relative'} flex flex-col items-center justify-center`}>
+    <div className="fixed inset-0 z-[10] bg-black flex flex-col items-center justify-center">
+      {/* Exit button - BIG, CLEAR, and with guaranteed exit function */}
+      <div className="absolute top-2 right-2 z-[100]">
+        <a 
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            guaranteedExit();
+          }}
+          className="px-4 py-2 bg-white text-black text-sm font-bold rounded shadow-lg flex items-center justify-center"
+          style={{touchAction: 'manipulation'}}
+        >
+          <span style={{pointerEvents: 'none'}}>✕ EXIT</span>
+        </a>
+      </div>
+      
       {!assetsLoaded ? (
         <div className="text-white text-xl">
           {loadingMessage}
         </div>
       ) : (
         <>
+          {/* Clear tap-to-jump instruction above the game canvas */}
+          <div className="mb-2 text-sm font-medium text-white">
+            TAP GAME SCREEN TO JUMP
+          </div>
+          
           <canvas 
             ref={canvasRef} 
             className="rounded-lg shadow-lg bg-blue-100" 
             onClick={handleCanvasTap}
           />
           
-          <div className={`mt-2 flex justify-between w-full ${isFullscreen ? 'px-4' : ''}`}>
-            <button 
-              onClick={toggleFullscreen} 
-              className="px-3 py-1 bg-white bg-opacity-70 text-black text-sm font-bold rounded"
-            >
-              {isFullscreen ? '🔳 Exit Fullscreen' : '🔍 Fullscreen'}
-            </button>
-            
-            {isFullscreen && (
-              <button 
-                onClick={onClose} 
-                className="px-3 py-1 bg-white bg-opacity-70 text-black text-sm font-bold rounded"
-              >
-                ✕ Close
-              </button>
-            )}
-          </div>
-          
-          {!isFullscreen && (
-            <div className="mt-1 text-xs text-center opacity-70">
-              Tap to jump!
-            </div>
-          )}
+          {/* Removed the fullscreen button and controls div */}
         </>
       )}
     </div>

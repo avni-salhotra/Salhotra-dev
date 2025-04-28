@@ -67,7 +67,7 @@ const useGameLogic = ({
   // Bug size consistent with player
   const bugSize = isMobile ? Math.min(25, canvasWidth / 20) : 25;
   
-  // Initialize player reference
+  // Initialize player reference with increased jump force for better visibility
   const playerRef = useRef({
     x: isMobile ? canvasWidth / 6 : 50,
     y: groundLevel, 
@@ -75,7 +75,7 @@ const useGameLogic = ({
     height: playerSize,
     vy: 0,
     gravity: isMobile ? 0.7 : 1.5,
-    jumpForce: isMobile ? -12 : -20,
+    jumpForce: isMobile ? -18 : -25, // Increased jump height for better visibility
     isJumping: false
   });
   
@@ -101,16 +101,11 @@ const useGameLogic = ({
       const player = playerRef.current;
       const bug = bugRef.current;
 
-      // Adjust player based on how high they are off the ground originally
-      const relativePlayerOffset = player.y - groundLevel;
-      player.y = newGroundLevel + relativePlayerOffset;
-
-      // If falling too low, snap to ground
-      if (player.y > newGroundLevel) {
-        player.y = newGroundLevel;
-        player.vy = 0;
-        player.isJumping = false;
-      }
+      // FIX: Always ensure the player is properly positioned at ground level
+      // This is critical for Android devices like Galaxy S21 FE
+      player.y = newGroundLevel;
+      player.vy = 0;
+      player.isJumping = false;
 
       // Reset bug to run near new ground level
       bug.y = calculateGroundY(newCanvasHeight) - bug.height;
@@ -144,11 +139,14 @@ const useGameLogic = ({
     const bug = bugRef.current;
     
     // Use smaller hitbox for more precise collision detection
+    // Make the hitbox even smaller vertically when jumping to be more forgiving
+    const hitboxHeightReduction = player.isJumping ? 0.3 : 0.2;
+    
     const playerHitbox = {
       x: player.x + player.width * 0.15,
       y: player.y + player.height * 0.1,
       width: player.width * 0.7,
-      height: player.height * 0.8
+      height: player.height * (1 - hitboxHeightReduction)
     };
     
     if (
@@ -302,7 +300,10 @@ const useGameLogic = ({
   // Get current game state for rendering
   const getGameState = useCallback(() => {
     return {
-      player: { ...playerRef.current },
+      player: { 
+        ...playerRef.current,
+        vy: playerRef.current.vy // Explicitly include velocity for animations
+      },
       bug: { ...bugRef.current },
       score,
       gameOver,
